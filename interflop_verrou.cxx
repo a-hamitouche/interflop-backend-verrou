@@ -45,6 +45,21 @@
 #include "vr_rand_implem.h"
 #include "vr_roundingOp.hxx"
 
+#if defined(VECT512)
+#include "x86_64/interflop_vector_verrou_avx512.h"
+#endif
+
+#if defined(VECT256)
+#include "x86_64/interflop_vector_verrou_avx.h"
+#endif
+
+#if defined(VECT128)
+#include "x86_64/interflop_vector_verrou_sse.h"
+#endif
+
+#if defined(SCALAR)
+#include "x86_64/interflop_vector_verrou_scalar.h"
+#endif
 // * Global variables & parameters
 
 static const char backend_name[] = "interflop-verrou";
@@ -473,7 +488,13 @@ struct interflop_backend_interface_t _verrou_get_dynamic_backend(void) {
     interflop_enter_function : NULL,
     interflop_exit_function : NULL,
     interflop_user_call : INTERFLOP_VERROU_API(user_call),
-    interflop_finalize : INTERFLOP_VERROU_API(finalize)
+    interflop_finalize : INTERFLOP_VERROU_API(finalize),
+    vbackend : {
+      scalar : interflop_vector_verrou_init_scalar (nullptr),
+      vector128 : interflop_vector_verrou_init_sse (nullptr),
+      vector256 : interflop_vector_verrou_init_avx (nullptr),
+      vector512 : interflop_vector_verrou_init_avx512 (nullptr)
+    }
   };
   return interflop_backend_verrou;
 }
