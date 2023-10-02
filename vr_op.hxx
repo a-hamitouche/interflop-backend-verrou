@@ -35,6 +35,7 @@
 #include <algorithm>
 #include <cstring>
 #include <type_traits>
+#include <immintrin.h>
 
 #include "interflop/fma/interflop_fma.h"
 #include "vr_isNan.hxx"
@@ -68,17 +69,17 @@ template <typename REAL>
 REAL __verrou_internal_fma(const REAL &a, const REAL &b, const REAL &c);
 
 template <>
-float __verrou_internal_fma(const float &a, const float &b, const float &c) {
+inline float __verrou_internal_fma(const float &a, const float &b, const float &c) {
   return interflop_fma_binary32(a, b, c);
 }
 
 template <>
-double __verrou_internal_fma(const double &a, const double &b,
+inline double __verrou_internal_fma(const double &a, const double &b,
                              const double &c) {
   return interflop_fma_binary64(a, b, c);
 }
 template <>
-__float128 __verrou_internal_fma(const __float128 &a, const __float128 &b,
+inline __float128 __verrou_internal_fma(const __float128 &a, const __float128 &b,
                                  const __float128 &c) {
   return interflop_fma_binary128(a, b, c);
 }
@@ -112,7 +113,12 @@ template <class REALTYPE> struct vr_packArg<REALTYPE, 1> {
   inline void serialyzeDouble(double *res) const { res[0] = (double)arg1; }
 
   inline bool isOneArgNanInf() const { return isNanInf<RealType>(arg1); }
-
+  
+  inline __m128i hasOneArgNanInf() const {
+    interflop_panic ("Not implemented");
+    return _mm_set1_epi8 ( (char) 1);
+  }
+  
   const RealType &arg1;
 };
 
@@ -129,6 +135,11 @@ template <class REALTYPE> struct vr_packArg<REALTYPE, 2> {
 
   inline bool isOneArgNanInf() const {
     return (isNanInf<RealType>(arg1) || isNanInf<RealType>(arg2));
+  }
+
+  inline __m128i hasOneArgNanInf() const {
+    interflop_panic ("Not implemented");
+    return _mm_set1_epi8 ( (char) 1);
   }
 
   const RealType &arg1;
@@ -151,6 +162,11 @@ template <class REALTYPE> struct vr_packArg<REALTYPE, 3> {
   inline bool isOneArgNanInf() const {
     return (isNanInf<RealType>(arg1) || isNanInf<RealType>(arg2) ||
             isNanInf<RealType>(arg3));
+  }
+
+  inline __m128i hasOneArgNanInf() const {
+    interflop_panic ("Not implemented");
+    return _mm_set1_epi8 ( (char) 1);
   }
 
   const RealType &arg1;
@@ -228,6 +244,10 @@ public:
     return p.isOneArgNanInf();
   }
 
+  static inline __m128i areInfNotSpecificToNearest(const PackArgs &p) {
+    return p.hasOneArgNanInf();
+  }
+
   static inline void check([[maybe_unused]] const PackArgs &p,
                            [[maybe_unused]] const RealType &c) {}
 
@@ -266,6 +286,10 @@ public:
     return p.isOneArgNanInf();
   }
 
+  static inline __m128i areInfNotSpecificToNearest(const PackArgs &p) {
+    return p.hasOneArgNanInf();
+  }
+
   static inline RealType sameSignOfError(const PackArgs &p, const RealType &c) {
     return SubOp<RealType>::error(p, c);
   }
@@ -282,15 +306,15 @@ public:
 };
 
 // splitFactor used by MulOp
-template <class REALTYPE> REALTYPE splitFactor() {
+template <class REALTYPE> inline REALTYPE splitFactor() {
   return 0. / 0.; // nan to make sure not used
 }
 
-template <> double splitFactor<double>() {
+template <> inline double splitFactor<double>() {
   return 134217729; //((2^27)+1); /27 en double  sup(53/2) /
 }
 
-template <> float splitFactor<float>() {
+template <> inline float splitFactor<float>() {
   return 4097; //((2^12)+1); / 24/2 en float/
 }
 
@@ -346,6 +370,10 @@ public:
 
   static inline bool isInfNotSpecificToNearest(const PackArgs &p) {
     return p.isOneArgNanInf();
+  }
+
+  static inline __m128i areInfNotSpecificToNearest(const PackArgs &p) {
+    return p.hasOneArgNanInf();
   }
 
   static inline void check([[maybe_unused]] const PackArgs &p,
